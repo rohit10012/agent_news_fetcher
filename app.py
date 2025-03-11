@@ -2,9 +2,10 @@ import requests
 import os
 import json
 import asyncio
-import edge_tts  # High-quality AI voice
-from flask import Flask, jsonify, render_template
+import edge_tts
+from flask import Flask, jsonify, render_template, request
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +16,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Flask app
 app = Flask(__name__)
+
+# Global variable to store cached news
+cached_news = None
+last_fetch_time = None
 
 # Search parameters
 QUERY = "scientific breakthrough"
@@ -29,20 +34,27 @@ CATEGORIES = {
 
 # Function to fetch and categorize news
 def fetch_science_news():
-    response = requests.get(URL)
-    data = response.json()
-    
-    categorized_news = {"Physics": [], "Medicine": [], "Tech": []}
-    
-    if "articles" in data:
-        for article in data["articles"]:
-            title = article["title"]
-            url = article["url"]
-            category = classify_category(title)
-            if category:
-                categorized_news[category].append({"title": title, "url": url})
-    
-    return categorized_news
+    global cached_news, last_fetch_time
+
+    # Fetch news only if cache is empty or older than 24 hours
+    if not cached_news or (last_fetch_time and datetime.now() - last_fetch_time > timedelta(hours=24)):
+        response = requests.get(URL)
+        data = response.json()
+
+        categorized_news = {"Physics": [], "Medicine": [], "Tech": []}
+
+        if "articles" in data:
+            for article in data["articles"]:
+                title = article["title"]
+                url = article["url"]
+                category = classify_category(title)
+                if category:
+                    categorized_news[category].append({"title": title, "url": url})
+
+        cached_news = categorized_news
+        last_fetch_time = datetime.now()
+
+    return cached_news
 
 # Function to classify news based on keywords
 def classify_category(title):
@@ -50,7 +62,7 @@ def classify_category(title):
     for category, keywords in CATEGORIES.items():
         if any(keyword.lower() in title_lower for keyword in keywords):
             return category
-    return None  # Skip if no matching category
+    return None
 
 # Function to summarize text using Groq API
 def summarize_text(text):
@@ -61,13 +73,13 @@ def summarize_text(text):
                      {"role": "user", "content": text}],
         "max_tokens": 150
     }
-    
+
     response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
     response_data = response.json()
 
     if "choices" in response_data and response_data["choices"]:
         return response_data["choices"][0]["message"]["content"].strip()
-    
+
     return "No summary available."
 
 # Function to convert text to speech using Edge TTS
@@ -91,29 +103,16 @@ def home():
 
     # Convert full news summary to speech
     full_text = "\n\n".join([f"{cat} News:\n" + "\n".join([a['summary'] for a in summaries[cat]]) for cat in summaries])
-    
-    # Use asyncio to run async function in a non-async function
     mp3_file = asyncio.run(text_to_speech(full_text))
 
     return render_template("index.html", news=summaries, audio_file=mp3_file)
 
-# API Endpoint to fetch summarized news for Siri/Home Assistant
-@app.route("/news")
-def get_news():
-    news = fetch_science_news()
-    summaries = {}
-
-    for category, articles in news.items():
-        summaries[category] = []
-        for i, article in enumerate(articles[:5]):
-            summary = summarize_text(article["title"])
-            summaries[category].append({"title": article["title"], "url": article["url"], "summary": summary})
-
-    # Convert full news summary to speech
-    full_text = "\n\n".join([f"{cat} News:\n" + "\n".join([a['summary'] for a in summaries[cat]]) for cat in summaries])
-    mp3_file = asyncio.run(text_to_speech(full_text))
-
-    return jsonify({"news": summaries, "audio_file": mp3_file})
+# API Endpoint to refresh news manually
+@app.route("/refresh", methods=["POST"])
+def refresh_news():
+    global cached_news, last_fetch_time
+    cached_news = None  # Clear cache to force a refresh
+    return jsonify({"status": "success", "message": "News cache cleared. Refresh the page to fetch latest news."})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5002, debug=True)

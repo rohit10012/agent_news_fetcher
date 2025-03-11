@@ -1,29 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI News Reader</title>
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            color: #007BFF;
+            margin-bottom: 15px;
+        }
+
+        ul {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        li {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        li:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        a {
+            color: #007BFF;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .refresh-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        .refresh-button:hover {
+            background-color: #0056b3;
+        }
+
+        .category-dropdown {
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>🔬 AI Summarized Science News</h1>
-    
-    {% for category, articles in news.items() %}
-        <h2>{{ category }} News:</h2>
-        <ul>
-            {% for article in articles %}
-                <li><strong>{{ article.title }}</strong><br>
+    <div class="container">
+        <h1>🔬 AI Summarized Science News</h1>
+
+        <!-- Category Dropdown -->
+        <select class="category-dropdown" id="categoryDropdown">
+            <option value="all">All Categories</option>
+            <option value="Physics">Physics</option>
+            <option value="Medicine">Medicine</option>
+            <option value="Tech">Tech</option>
+        </select>
+
+        <!-- Refresh Button -->
+        <button class="refresh-button" onclick="refreshNews()">Refresh News</button>
+
+        <!-- News Display -->
+        {% for category, articles in news.items() %}
+        <div class="category-section" data-category="{{ category }}">
+            <h2>{{ category }} News:</h2>
+            <ul>
+                {% for article in articles %}
+                <li>
+                    <strong>{{ article.title }}</strong><br>
                     <a href="{{ article.url }}" target="_blank">Read more</a><br>
                     📝 {{ article.summary }}
                 </li>
-            {% endfor %}
-        </ul>
-    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
 
-    <h2>🎧 Listen to News</h2>
-    <audio controls autoplay>
-        <source src="{{ audio_file }}" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
+        <!-- Audio Player -->
+        <h2>🎧 Listen to News</h2>
+        <audio controls autoplay>
+            <source src="{{ audio_file }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    <script>
+        // Filter news by category
+        document.getElementById('categoryDropdown').addEventListener('change', function () {
+            const selectedCategory = this.value;
+            const categorySections = document.querySelectorAll('.category-section');
+
+            categorySections.forEach(section => {
+                if (selectedCategory === 'all' || section.getAttribute('data-category') === selectedCategory) {
+                    section.style.display = 'block';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        });
+
+        // Refresh news
+        function refreshNews() {
+            window.location.reload();
+        }
+    </script>
 </body>
+
 </html>
